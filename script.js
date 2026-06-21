@@ -983,6 +983,7 @@ document.addEventListener('keydown', e => {
     closeFeatureModal();
     closeStateModal();
     closeCategoryModal();
+    closeAuthModal();
     document.getElementById('successModal').classList.remove('active');
     document.body.style.overflow = '';
   }
@@ -1019,6 +1020,7 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
 document.addEventListener('DOMContentLoaded', () => {
   buildIndiaMap();
   selectStateOnMapAndSidebar('Tamil Nadu');
+  initAuth();
 
   // Duplicate destination track for infinite scroll
   const track = document.getElementById('destTrack');
@@ -1031,3 +1033,326 @@ document.addEventListener('DOMContentLoaded', () => {
   const today = new Date().toISOString().split('T')[0];
   document.querySelectorAll('input[type="date"]').forEach(d => d.setAttribute('min', today));
 });
+
+/* ── AUTHENTICATION & SESSION MANAGEMENT ────────────────── */
+let currentSessionUser = null;
+
+// Initialize authentication on page load
+function initAuth() {
+  const session = localStorage.getItem('currentUser');
+  if (session) {
+    try {
+      currentSessionUser = JSON.parse(session);
+      updateAuthUI(true);
+    } catch (e) {
+      localStorage.removeItem('currentUser');
+      updateAuthUI(false);
+    }
+  } else {
+    updateAuthUI(false);
+  }
+}
+
+// Update UI based on authentication state
+function updateAuthUI(isLoggedIn) {
+  const signInBtn = document.getElementById('navSignInBtn');
+  const profileDropdown = document.getElementById('navProfileDropdown');
+  const navUserAvatar = document.getElementById('navUserAvatar');
+  const navUsername = document.getElementById('navUsername');
+  
+  // Mobile nav links
+  const mobileLoggedOut = document.querySelectorAll('.mobile-auth-link.logged-out-only');
+  const mobileLoggedIn = document.querySelectorAll('.mobile-auth-link.logged-in-only');
+
+  if (isLoggedIn && currentSessionUser) {
+    // Desktop logged-in UI
+    if (signInBtn) signInBtn.style.display = 'none';
+    if (profileDropdown) profileDropdown.style.display = 'inline-flex';
+    if (navUsername) navUsername.textContent = currentSessionUser.name;
+    
+    // UI avatar fallback if logo not available
+    const initialsName = encodeURIComponent(currentSessionUser.name);
+    if (navUserAvatar) {
+      navUserAvatar.src = `https://ui-avatars.com/api/?name=${initialsName}&background=0099ff&color=fff&bold=true`;
+    }
+
+    // Mobile menu toggles
+    mobileLoggedOut.forEach(el => el.style.display = 'none');
+    mobileLoggedIn.forEach(el => el.style.display = 'block');
+  } else {
+    // Desktop logged-out UI
+    if (signInBtn) signInBtn.style.display = 'inline-flex';
+    if (profileDropdown) profileDropdown.style.display = 'none';
+    
+    // Mobile menu toggles
+    mobileLoggedOut.forEach(el => el.style.display = 'block');
+    mobileLoggedIn.forEach(el => el.style.display = 'none');
+  }
+}
+
+// Open modal
+function openAuthModal() {
+  const modal = document.getElementById('authModal');
+  if (modal) {
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    
+    // Reset forms & alerts
+    document.getElementById('signInForm').reset();
+    document.getElementById('signUpForm').reset();
+    document.getElementById('signInAlert').style.display = 'none';
+    document.getElementById('signUpAlert').style.display = 'none';
+    
+    // Default to sign-in tab
+    switchAuthTab('signin');
+  }
+}
+
+// Close modal
+function closeAuthModal(e) {
+  if (e && e.target !== document.getElementById('authModal') && 
+      e.target !== document.querySelector('#authModal .modal-close') && 
+      !document.querySelector('#authModal .modal-close').contains(e.target)) return;
+      
+  const modal = document.getElementById('authModal');
+  if (modal) {
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+}
+
+// Switch tabs inside modal
+function switchAuthTab(tab) {
+  const tabSignIn = document.getElementById('tabSignIn');
+  const tabSignUp = document.getElementById('tabSignUp');
+  const formSignIn = document.getElementById('signInForm');
+  const formSignUp = document.getElementById('signUpForm');
+
+  if (tab === 'signin') {
+    tabSignIn.classList.add('active');
+    tabSignUp.classList.remove('active');
+    formSignIn.style.display = 'flex';
+    formSignUp.style.display = 'none';
+  } else {
+    tabSignIn.classList.remove('active');
+    tabSignUp.classList.add('active');
+    formSignIn.style.display = 'none';
+    formSignUp.style.display = 'flex';
+  }
+}
+
+// Toggle password visibility
+function togglePasswordVisibility(inputId, btnEl) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const icon = btnEl.querySelector('i');
+  
+  if (input.type === 'password') {
+    input.type = 'text';
+    if (icon) {
+      icon.classList.remove('fa-eye');
+      icon.classList.add('fa-eye-slash');
+    }
+  } else {
+    input.type = 'password';
+    if (icon) {
+      icon.classList.remove('fa-eye-slash');
+      icon.classList.add('fa-eye');
+    }
+  }
+}
+
+// Toggle Profile Dropdown (Desktop)
+function toggleProfileDropdown(e) {
+  if (e) e.stopPropagation();
+  const dropdown = document.getElementById('navProfileDropdown');
+  const menu = document.getElementById('profileDropdownMenu');
+  if (dropdown && menu) {
+    dropdown.classList.toggle('open');
+    menu.classList.toggle('show');
+  }
+}
+
+function closeProfileDropdown() {
+  const dropdown = document.getElementById('navProfileDropdown');
+  const menu = document.getElementById('profileDropdownMenu');
+  if (dropdown && menu) {
+    dropdown.classList.remove('open');
+    menu.classList.remove('show');
+  }
+}
+
+// Close dropdown on click outside
+document.addEventListener('click', e => {
+  const dropdown = document.getElementById('navProfileDropdown');
+  if (dropdown && !dropdown.contains(e.target)) {
+    closeProfileDropdown();
+  }
+});
+
+// Toast notification helper
+function showToast(message, type = 'success') {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = `toast-alert ${type}`;
+  
+  const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+  toast.innerHTML = `
+    <i class="fas ${icon}"></i>
+    <span>${message}</span>
+  `;
+  
+  container.appendChild(toast);
+  
+  // Trigger transition
+  setTimeout(() => toast.classList.add('show'), 50);
+  
+  // Remove after 3.5 seconds
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 400);
+  }, 3500);
+}
+
+// Handle Sign In submission
+function handleSignInSubmit(e) {
+  e.preventDefault();
+  const email = document.getElementById('signInEmail').value.trim();
+  const password = document.getElementById('signInPassword').value;
+  const alertEl = document.getElementById('signInAlert');
+  const submitBtn = document.getElementById('signInSubmitBtn');
+  const btnText = submitBtn.querySelector('.btn-text');
+  const btnSpinner = submitBtn.querySelector('.btn-spinner');
+
+  // Simple validation
+  if (!email || !password) {
+    showAlert(alertEl, 'Please enter email/phone and password.', 'error');
+    return;
+  }
+
+  if (password.length < 6) {
+    showAlert(alertEl, 'Password must be at least 6 characters long.', 'error');
+    return;
+  }
+
+  // Simulate API loading
+  btnText.style.display = 'none';
+  btnSpinner.style.display = 'block';
+  submitBtn.disabled = true;
+  alertEl.style.display = 'none';
+
+  setTimeout(() => {
+    // Reset button state
+    btnText.style.display = 'inline';
+    btnSpinner.style.display = 'none';
+    submitBtn.disabled = false;
+
+    // Save state
+    const userName = email.includes('@') ? email.split('@')[0] : 'Tamil Ji Member';
+    currentSessionUser = { name: userName, email: email };
+    localStorage.setItem('currentUser', JSON.stringify(currentSessionUser));
+
+    // Update UI & notify
+    updateAuthUI(true);
+    showToast('Signed in successfully! Welcome back.');
+    
+    // Close modal
+    closeAuthModal();
+  }, 1200);
+}
+
+// Handle Register submission
+function handleSignUpSubmit(e) {
+  e.preventDefault();
+  const name = document.getElementById('signUpName').value.trim();
+  const email = document.getElementById('signUpEmail').value.trim();
+  const phone = document.getElementById('signUpPhone').value.trim();
+  const password = document.getElementById('signUpPassword').value;
+  const alertEl = document.getElementById('signUpAlert');
+  const submitBtn = document.getElementById('signUpSubmitBtn');
+  const btnText = submitBtn.querySelector('.btn-text');
+  const btnSpinner = submitBtn.querySelector('.btn-spinner');
+
+  // Simple validation
+  if (!name || !email || !phone || !password) {
+    showAlert(alertEl, 'Please fill in all fields.', 'error');
+    return;
+  }
+
+  if (password.length < 6) {
+    showAlert(alertEl, 'Password must be at least 6 characters.', 'error');
+    return;
+  }
+
+  // Simulate API loading
+  btnText.style.display = 'none';
+  btnSpinner.style.display = 'block';
+  submitBtn.disabled = true;
+  alertEl.style.display = 'none';
+
+  setTimeout(() => {
+    // Reset button state
+    btnText.style.display = 'inline';
+    btnSpinner.style.display = 'none';
+    submitBtn.disabled = false;
+
+    // Save session
+    currentSessionUser = { name: name, email: email, phone: phone };
+    localStorage.setItem('currentUser', JSON.stringify(currentSessionUser));
+
+    // Store in registered users DB locally
+    let users = [];
+    try {
+      users = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
+    } catch(e) {}
+    users.push(currentSessionUser);
+    localStorage.setItem('registeredUsers', JSON.stringify(users));
+
+    // Update UI & notify
+    updateAuthUI(true);
+    showToast('Registration successful! Welcome to Tamil Ji Holidays.');
+    
+    // Close modal
+    closeAuthModal();
+  }, 1200);
+}
+
+// Helper to show alert in form
+function showAlert(el, msg, type) {
+  el.textContent = msg;
+  el.className = `auth-alert ${type}`;
+  el.style.display = 'block';
+}
+
+// Handle Logout
+function handleSignOut() {
+  localStorage.removeItem('currentUser');
+  currentSessionUser = null;
+  updateAuthUI(false);
+  closeProfileDropdown();
+  showToast('Logged out successfully.', 'success');
+}
+
+// Handle Forgot Password
+function handleForgotPassword(e) {
+  e.preventDefault();
+  const email = document.getElementById('signInEmail').value.trim();
+  const alertEl = document.getElementById('signInAlert');
+  
+  if (!email) {
+    showAlert(alertEl, 'Please enter your Email or Phone above first.', 'error');
+  } else {
+    showAlert(alertEl, `Reset link sent to ${email}. Check your inbox.`, 'success');
+  }
+}
+
+// Handle Social Logins
+function handleSocialLogin(platform) {
+  showToast(`Simulated continue with ${platform} successful!`, 'success');
+  currentSessionUser = { name: `${platform} User`, email: `user@${platform.toLowerCase()}.com` };
+  localStorage.setItem('currentUser', JSON.stringify(currentSessionUser));
+  updateAuthUI(true);
+  closeAuthModal();
+}
