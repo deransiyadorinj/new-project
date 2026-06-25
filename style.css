@@ -3061,4 +3061,129 @@ i:not(.fab):not(.fa-whatsapp):not(.fa-facebook):not(.fa-instagram):not(.fa-youtu
   }
 }
 
+/* Generic Modal Overlay styling - Unified & Premium */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 4, 9, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 5000;
+  padding: 20px;
+  animation: fadeIn 0.3s ease;
+}
+.modal-overlay.active {
+  display: flex;
+}
 
+/* Success Modal Card Style */
+.success-modal.glass-card {
+  max-width: 440px;
+  width: 100%;
+  padding: 40px 30px;
+  text-align: center;
+  position: relative;
+  background: rgba(10, 15, 30, 0.95);
+  border: 1px solid rgba(0, 153, 255, 0.3);
+  border-radius: 24px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(0, 153, 255, 0.15);
+  animation: modalPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.success-icon {
+  font-size: 3.5rem;
+  color: var(--blue-electric);
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: center;
+  animation: successPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes successPop {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.success-modal h3 {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 12px;
+}
+
+.success-modal p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.success-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.success-actions .btn-primary,
+.success-actions .btn-ghost {
+  padding: 12px 20px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  border-radius: var(--radius-md);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+/* Button Loading States & Spinner */
+.btn-book-submit:disabled,
+.btn-auth-submit:disabled {
+  opacity: 0.8;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.btn-book-submit i.fa-spin,
+.btn-auth-submit i.fa-spin {
+  margin-right: 8px;
+}
+
+/* Responsive Tablet & Mobile Improvements */
+@media (max-width: 1024px) {
+  .booking-form-wrap {
+    padding: 24px;
+  }
+  .booking-info {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .contact-layout {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  .success-modal.glass-card {
+    padding: 30px 20px;
+  }
+  .success-actions {
+    flex-direction: column;
+  }
+  .success-actions a {
+    width: 100%;
+    justify-content: center;
+  }
+}

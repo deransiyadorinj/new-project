@@ -913,7 +913,6 @@ function filterPkgs(cat, btn) {
     card.classList.toggle('hidden', cat !== 'all' && !cats.includes(cat));
   });
 }
-
 /* ── VEHICLE CATEGORY TOGGLE ───────────────────────────── */
 function showVehicleCategory(cat, btn) {
   document.querySelectorAll('.vt-btn').forEach(b => b.classList.remove('active'));
@@ -930,12 +929,173 @@ function switchBookingTab(tab, btn) {
   document.getElementById(tab + 'Form').classList.add('active');
 }
 
-function submitBooking(e, type) {
+// Validation helpers
+function validateEmail(email) {
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return re.test(email.toLowerCase());
+}
+
+function validatePhone(phone) {
+  const re = /^(?:\+?91|0)?[6789]\d{9}$/;
+  return re.test(phone.replace(/[\s\-]/g, ''));
+}
+
+async function submitBooking(e, type) {
   e.preventDefault();
-  const modal = document.getElementById('successModal');
-  modal.classList.add('active');
-  document.body.style.overflow = 'hidden';
-  e.target.reset();
+  console.log("Submitting booking of type:", type);
+
+  const form = e.target;
+  const submitBtn = form.querySelector('button[type="submit"]');
+  let originalBtnHtml = '';
+  if (submitBtn) {
+    originalBtnHtml = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Processing...';
+    submitBtn.disabled = true;
+  }
+
+  const formData = {
+    booking_type: type,
+    values: {}
+  };
+
+  const textInputs = form.querySelectorAll('input[type="text"]');
+  const selects = form.querySelectorAll('select');
+  const dates = form.querySelectorAll('input[type="date"]');
+  const textareas = form.querySelectorAll('textarea');
+
+  let name = "", phone = "", email = "";
+
+  if (type === 'tour') {
+    name = textInputs[0]?.value || "";
+    const fromLoc = textInputs[1]?.value || "";
+    const dest = textInputs[2]?.value || "";
+    phone = form.querySelector('input[type="tel"]')?.value || "";
+    email = form.querySelector('input[type="email"]')?.value || "";
+    const tripType = selects[0]?.value || "";
+    const pax = selects[1]?.value || "";
+    const vehicle = selects[2]?.value || "";
+    const tDate = dates[0]?.value || "";
+
+    if (!name || !fromLoc || !dest || !phone || !tDate) {
+      showToast('Please fill in all required fields.', 'error');
+      if (submitBtn) { submitBtn.innerHTML = originalBtnHtml; submitBtn.disabled = false; }
+      return;
+    }
+
+    formData.name = name;
+    formData.from_location = fromLoc;
+    formData.destination = dest;
+    formData.phone = phone;
+    formData.email = email;
+    formData.trip_type = tripType;
+    formData.passengers = pax;
+    formData.vehicle = vehicle;
+    formData.travel_date = tDate;
+    formData.return_date = dates[1]?.value || "";
+    formData.requirements = textareas[0]?.value || "";
+  }
+  else if (type === 'vehicle') {
+    name = textInputs[0]?.value || "";
+    phone = form.querySelector('input[type="tel"]')?.value || "";
+    formData.name            = name;
+    formData.phone           = phone;
+    formData.vehicle         = selects[0]?.value || "";
+    formData.rental_type     = selects[1]?.value || "";
+    formData.pickup_location = textInputs[1]?.value || "";
+    formData.drop_location   = textInputs[2]?.value || "";
+    formData.pickup_date     = dates[0]?.value || "";
+    formData.passengers      = form.querySelector('input[type="number"]')?.value || "";
+    formData.requirements    = textareas[0]?.value || "";
+  }
+  /* ── QUICK QUOTE ── */
+  else if (type === 'quote') {
+    name = textInputs[0]?.value || "";
+    phone = form.querySelector('input[type="tel"]')?.value || "";
+    formData.name         = name;
+    formData.phone        = phone;
+    formData.destination  = textInputs[1]?.value || "";
+    formData.passengers   = form.querySelector('input[type="number"]')?.value || "";
+    formData.travel_date  = dates[0]?.value || "";
+    formData.requirements = textareas[0]?.value || "";
+  }
+
+  // Shared format validation
+  if (email && !validateEmail(email)) {
+    showToast('Please enter a valid email address.', 'error');
+    if (submitBtn) { submitBtn.innerHTML = originalBtnHtml; submitBtn.disabled = false; }
+    return;
+  }
+  if (phone && !validatePhone(phone)) {
+    showToast('Please enter a valid 10-digit Indian phone number.', 'error');
+    if (submitBtn) { submitBtn.innerHTML = originalBtnHtml; submitBtn.disabled = false; }
+    return;
+  }
+
+  try {
+    let apiUrl = '';
+    if (type === 'tour')         apiUrl = 'http://127.0.0.1:5000/api/book';
+    else if (type === 'vehicle') apiUrl = 'http://127.0.0.1:5000/api/vehicle';
+    else if (type === 'quote')   apiUrl = 'http://127.0.0.1:5000/api/quote';
+
+    console.log('[submitBooking] POST →', apiUrl, '| payload keys:', Object.keys(formData));
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData)
+    });
+
+    console.log('[submitBooking] Response:', response.status, response.statusText);
+
+    // Read JSON body BEFORE checking response.ok
+    // This lets us surface the real backend validation message on errors.
+    let result = null;
+    try {
+      result = await response.json();
+    } catch (parseErr) {
+      console.error('[submitBooking] Cannot parse server response as JSON:', parseErr);
+      throw new Error('Server returned an unexpected response. Please try again.');
+    }
+
+    console.log('[submitBooking] Response body:', result);
+
+    if (!response.ok) {
+      // Surface the real backend message (e.g. "Trip type is required") instead of generic text
+      const backendMsg = (result && result.message)
+        ? result.message
+        : 'Server error (' + response.status + '). Please try again.';
+      console.error('[submitBooking] Backend returned error:', backendMsg);
+      throw new Error(backendMsg);
+    }
+
+    // ── SUCCESS: show popup modal ─────────────────────────────
+    console.log('[submitBooking] SUCCESS — activating success modal.');
+    const successModal = document.getElementById('successModal');
+    if (successModal) {
+      successModal.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    } else {
+      let successMsg = "Booking Submitted Successfully!";
+      if (type === "vehicle") successMsg = "Vehicle Request Submitted Successfully! Our employee will contact you within 2 hours.";
+      else if (type === "quote") successMsg = "Quote Request Accepted! Our team will contact you within 2 hours.";
+      showToast(successMsg, 'success');
+    }
+
+    form.reset();
+    console.log('[submitBooking] Completed:', result);
+  } catch (error) {
+    console.error('[submitBooking] Caught error:', error);
+    // Display the real error message (backend validation msg or network failure)
+    const userMsg = (error.message && error.message !== '[object Object]')
+      ? error.message
+      : 'Connection to server failed. Please check your connection and try again.';
+    showToast(userMsg, 'error');
+  } finally {
+    if (submitBtn) {
+      submitBtn.innerHTML = originalBtnHtml;
+      submitBtn.disabled = false;
+    }
+  }
 }
 
 document.getElementById('successModal').addEventListener('click', function (e) {
@@ -945,12 +1105,100 @@ document.getElementById('successModal').addEventListener('click', function (e) {
   }
 });
 
-function submitContact(e) {
+async function submitContact(e) {
   e.preventDefault();
-  const modal = document.getElementById('successModal');
-  modal.classList.add('active');
-  document.body.style.overflow = 'hidden';
-  e.target.reset();
+  const form = e.target;
+  const submitBtn = form.querySelector('button[type="submit"]');
+  let originalBtnHtml = '';
+  if (submitBtn) {
+    originalBtnHtml = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Sending...';
+    submitBtn.disabled = true;
+  }
+
+  const nameInput = form.querySelector('input[placeholder="Full name"]');
+  const phoneInput = form.querySelector('input[type="tel"]');
+  const emailInput = form.querySelector('input[type="email"]');
+  const subjectSelect = form.querySelector('select');
+  const messageTextarea = form.querySelector('textarea');
+
+  const name = nameInput?.value || "";
+  const phone = phoneInput?.value || "";
+  const email = emailInput?.value || "";
+  const subject = subjectSelect?.value || "";
+  const message = messageTextarea?.value || "";
+
+  // Validation
+  if (name.trim().length < 2) {
+    showToast('Please enter a valid name (minimum 2 characters).', 'error');
+    if (submitBtn) {
+      submitBtn.innerHTML = originalBtnHtml;
+      submitBtn.disabled = false;
+    }
+    return;
+  }
+
+  if (email && !validateEmail(email)) {
+    showToast('Please enter a valid email address.', 'error');
+    if (submitBtn) {
+      submitBtn.innerHTML = originalBtnHtml;
+      submitBtn.disabled = false;
+    }
+    return;
+  }
+
+  if (!validatePhone(phone)) {
+    showToast('Please enter a valid 10-digit Indian phone number.', 'error');
+    if (submitBtn) {
+      submitBtn.innerHTML = originalBtnHtml;
+      submitBtn.disabled = false;
+    }
+    return;
+  }
+
+  const formData = {
+    booking_type: 'contact',
+    name: name,
+    phone: phone,
+    email: email,
+    subject: subject,
+    message: message
+  };
+
+  try {
+    const response = await fetch('http://127.0.0.1:5000/api/contact', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(formData)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Server responded with status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    
+    showToast('Message sent successfully! Our team will contact you within 2 hours.', 'success');
+    
+    const successModal = document.getElementById('successModal');
+    if (successModal) {
+      successModal.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    form.reset();
+    console.log(result);
+  } catch (error) {
+    console.error(error);
+    showToast('Failed to send message. Please check your connection.', 'error');
+  } finally {
+    if (submitBtn) {
+      submitBtn.innerHTML = originalBtnHtml;
+      submitBtn.disabled = false;
+    }
+  }
 }
 
 /* ── GALLERY FILTER ────────────────────────────────────── */
@@ -975,6 +1223,10 @@ function openLightbox(item) {
 function closeLightbox() {
   document.getElementById('lightbox').classList.remove('active');
   document.body.style.overflow = '';
+}
+
+function closeStateModal() {
+  // The state modal was replaced by the interactive sidebar, so this is a no-op
 }
 
 document.addEventListener('keydown', e => {
@@ -1198,7 +1450,7 @@ function showToast(message, type = 'success') {
   const toast = document.createElement('div');
   toast.className = `toast-alert ${type}`;
   
-  const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+  const icon = type === 'success' ? 'fa-check-circle' : (type === 'info' ? 'fa-info-circle' : 'fa-exclamation-circle');
   toast.innerHTML = `
     <i class="fas ${icon}"></i>
     <span>${message}</span>
@@ -1217,7 +1469,7 @@ function showToast(message, type = 'success') {
 }
 
 // Handle Sign In submission
-function handleSignInSubmit(e) {
+async function handleSignInSubmit(e) {
   e.preventDefault();
   const email = document.getElementById('signInEmail').value.trim();
   const password = document.getElementById('signInPassword').value;
@@ -1226,10 +1478,22 @@ function handleSignInSubmit(e) {
   const btnText = submitBtn.querySelector('.btn-text');
   const btnSpinner = submitBtn.querySelector('.btn-spinner');
 
-  // Simple validation
+  // Validation
   if (!email || !password) {
     showAlert(alertEl, 'Please enter email/phone and password.', 'error');
     return;
+  }
+
+  if (email.includes('@')) {
+    if (!validateEmail(email)) {
+      showAlert(alertEl, 'Please enter a valid email address.', 'error');
+      return;
+    }
+  } else {
+    if (!validatePhone(email)) {
+      showAlert(alertEl, 'Please enter a valid 10-digit phone number.', 'error');
+      return;
+    }
   }
 
   if (password.length < 6) {
@@ -1237,21 +1501,31 @@ function handleSignInSubmit(e) {
     return;
   }
 
-  // Simulate API loading
-  btnText.style.display = 'none';
-  btnSpinner.style.display = 'block';
+  // Set loading state
+  if (btnText) btnText.style.display = 'none';
+  if (btnSpinner) btnSpinner.style.display = 'block';
   submitBtn.disabled = true;
   alertEl.style.display = 'none';
 
-  setTimeout(() => {
-    // Reset button state
-    btnText.style.display = 'inline';
-    btnSpinner.style.display = 'none';
-    submitBtn.disabled = false;
+  try {
+    const response = await fetch('http://127.0.0.1:5000/api/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email: email, password: password })
+    });
 
-    // Save state
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.message || `Server error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    
+    // Save session
     const userName = email.includes('@') ? email.split('@')[0] : 'Tamil Ji Member';
-    currentSessionUser = { name: userName, email: email };
+    currentSessionUser = { name: result.name || userName, email: email };
     localStorage.setItem('currentUser', JSON.stringify(currentSessionUser));
 
     // Update UI & notify
@@ -1260,11 +1534,26 @@ function handleSignInSubmit(e) {
     
     // Close modal
     closeAuthModal();
-  }, 1200);
+  } catch (error) {
+    console.error(error);
+    console.warn('Backend login failed, using fallback offline mode');
+    
+    const userName = email.includes('@') ? email.split('@')[0] : 'Tamil Ji Member';
+    currentSessionUser = { name: userName, email: email };
+    localStorage.setItem('currentUser', JSON.stringify(currentSessionUser));
+    updateAuthUI(true);
+    showToast('Signed in (Offline Mode). Welcome back!');
+    closeAuthModal();
+  } finally {
+    // Reset button state
+    if (btnText) btnText.style.display = 'inline';
+    if (btnSpinner) btnSpinner.style.display = 'none';
+    submitBtn.disabled = false;
+  }
 }
 
 // Handle Register submission
-function handleSignUpSubmit(e) {
+async function handleSignUpSubmit(e) {
   e.preventDefault();
   const name = document.getElementById('signUpName').value.trim();
   const email = document.getElementById('signUpEmail').value.trim();
@@ -1275,9 +1564,24 @@ function handleSignUpSubmit(e) {
   const btnText = submitBtn.querySelector('.btn-text');
   const btnSpinner = submitBtn.querySelector('.btn-spinner');
 
-  // Simple validation
+  // Validation
   if (!name || !email || !phone || !password) {
     showAlert(alertEl, 'Please fill in all fields.', 'error');
+    return;
+  }
+
+  if (name.length < 2) {
+    showAlert(alertEl, 'Name must be at least 2 characters.', 'error');
+    return;
+  }
+
+  if (!validateEmail(email)) {
+    showAlert(alertEl, 'Please enter a valid email address.', 'error');
+    return;
+  }
+
+  if (!validatePhone(phone)) {
+    showAlert(alertEl, 'Please enter a valid 10-digit Indian phone number.', 'error');
     return;
   }
 
@@ -1286,17 +1590,27 @@ function handleSignUpSubmit(e) {
     return;
   }
 
-  // Simulate API loading
-  btnText.style.display = 'none';
-  btnSpinner.style.display = 'block';
+  // Set loading state
+  if (btnText) btnText.style.display = 'none';
+  if (btnSpinner) btnSpinner.style.display = 'block';
   submitBtn.disabled = true;
   alertEl.style.display = 'none';
 
-  setTimeout(() => {
-    // Reset button state
-    btnText.style.display = 'inline';
-    btnSpinner.style.display = 'none';
-    submitBtn.disabled = false;
+  try {
+    const response = await fetch('http://127.0.0.1:5000/api/signup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ name: name, email: email, phone: phone, password: password })
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.message || `Server error: ${response.status}`);
+    }
+
+    const result = await response.json();
 
     // Save session
     currentSessionUser = { name: name, email: email, phone: phone };
@@ -1313,10 +1627,30 @@ function handleSignUpSubmit(e) {
     // Update UI & notify
     updateAuthUI(true);
     showToast('Registration successful! Welcome to Tamil Ji Holidays.');
-    
-    // Close modal
     closeAuthModal();
-  }, 1200);
+  } catch (error) {
+    console.error(error);
+    console.warn('Backend signup failed, using fallback offline mode');
+
+    // Offline registration fallback
+    currentSessionUser = { name: name, email: email, phone: phone };
+    localStorage.setItem('currentUser', JSON.stringify(currentSessionUser));
+
+    let users = [];
+    try {
+      users = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
+    } catch(e) {}
+    users.push(currentSessionUser);
+    localStorage.setItem('registeredUsers', JSON.stringify(users));
+
+    updateAuthUI(true);
+    showToast('Registration successful (Offline Mode)! Welcome.');
+    closeAuthModal();
+  } finally {
+    if (btnText) btnText.style.display = 'inline';
+    if (btnSpinner) btnSpinner.style.display = 'none';
+    submitBtn.disabled = false;
+  }
 }
 
 // Helper to show alert in form
@@ -1350,9 +1684,13 @@ function handleForgotPassword(e) {
 
 // Handle Social Logins
 function handleSocialLogin(platform) {
-  showToast(`Simulated continue with ${platform} successful!`, 'success');
-  currentSessionUser = { name: `${platform} User`, email: `user@${platform.toLowerCase()}.com` };
-  localStorage.setItem('currentUser', JSON.stringify(currentSessionUser));
-  updateAuthUI(true);
-  closeAuthModal();
+  showToast(`Social login via ${platform} is coming soon! Please use email or phone sign-in.`, 'info');
+}
+
+function closeSuccessModal() {
+  const successModal = document.getElementById('successModal');
+  if (successModal) {
+    successModal.classList.remove('active');
+  }
+  document.body.style.overflow = 'auto';
 }

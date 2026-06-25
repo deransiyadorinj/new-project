@@ -1101,21 +1101,21 @@
             <div class="form-row-2">
               <div class="form-group">
                 <label><i class="fas fa-user"></i> Full Name *</label>
-                <input type="text" placeholder="Your full name" required>
+                <input type="text" id="tour_name" name="tour_name" placeholder="Your full name" required>
               </div>
               <div class="form-group">
                 <label><i class="fas fa-phone"></i> Phone Number *</label>
-                <input type="tel" placeholder="+91 XXXXX XXXXX" required>
+                <input type="tel" id="tour_phone" name="tour_phone" placeholder="+91 XXXXX XXXXX" required>
               </div>
             </div>
             <div class="form-row-2">
               <div class="form-group">
                 <label><i class="fas fa-envelope"></i> Email Address</label>
-                <input type="email" placeholder="your@email.com">
+                <input type="email" id="tour_email" name="tour_email" placeholder="your@email.com">
               </div>
               <div class="form-group">
                 <label><i class="fas fa-tags"></i> Trip Type *</label>
-                <select required>
+                <select id="tour_trip_type" name="tour_trip_type" required>
                   <option value="">Select Trip Type</option>
                   <option>Family Tour</option>
                   <option>Honeymoon Package</option>
@@ -1130,7 +1130,7 @@
               <div class="form-group">
                 <label><i class="fas fa-map-marker-alt"></i> From Location *</label>
                 <div class="autocomplete-wrap">
-                  <input type="text" placeholder="Departure city/place" oninput="showSuggestions(this,'bkFromSug')"
+                  <input type="text" id="tour_from" name="tour_from" placeholder="Departure city/place" oninput="showSuggestions(this,'bkFromSug')"
                     autocomplete="off" required>
                   <div class="suggestions-dropdown" id="bkFromSug"></div>
                 </div>
@@ -1138,7 +1138,7 @@
               <div class="form-group">
                 <label><i class="fas fa-map-pin"></i> Destination *</label>
                 <div class="autocomplete-wrap">
-                  <input type="text" placeholder="Where do you want to go?" oninput="showSuggestions(this,'bkToSug')"
+                  <input type="text" id="tour_destination" name="tour_destination" placeholder="Where do you want to go?" oninput="showSuggestions(this,'bkToSug')"
                     autocomplete="off" required>
                   <div class="suggestions-dropdown" id="bkToSug"></div>
                 </div>
@@ -1147,17 +1147,17 @@
             <div class="form-row-2">
               <div class="form-group">
                 <label><i class="fas fa-calendar"></i> Travel Date *</label>
-                <input type="date" required>
+                <input type="date" id="tour_travel_date" name="tour_travel_date" required>
               </div>
               <div class="form-group">
                 <label><i class="fas fa-calendar-check"></i> Return Date</label>
-                <input type="date">
+                <input type="date" id="tour_return_date" name="tour_return_date">
               </div>
             </div>
             <div class="form-row-2">
               <div class="form-group">
                 <label><i class="fas fa-users"></i> Passenger Count *</label>
-                <select required>
+                <select id="tour_passengers" name="tour_passengers" required>
                   <option value="">Select Passengers</option>
                   <option>1–4 Persons</option>
                   <option>5–8 Persons</option>
@@ -1170,7 +1170,7 @@
               </div>
               <div class="form-group">
                 <label><i class="fas fa-car"></i> Vehicle Preference</label>
-                <select>
+                <select id="tour_vehicle" name="tour_vehicle">
                   <option value="">Any Vehicle</option>
                   <option>Sedan (Dzire/Etios)</option>
                   <option>Innova / Crysta</option>
@@ -1184,7 +1184,7 @@
             </div>
             <div class="form-group">
               <label><i class="fas fa-comment-alt"></i> Special Requirements</label>
-              <textarea placeholder="Any special requests, dietary needs, accessibility requirements..."
+              <textarea id="tour_requirements" name="tour_requirements" placeholder="Any special requests, dietary needs, accessibility requirements..."
                 rows="3"></textarea>
             </div>
             <button type="submit" class="btn-book-submit">
@@ -1306,7 +1306,56 @@
             </button>
           </form>
         </div>
+          <form class="booking-form" id="contactForm" onsubmit="submitBooking(event,'contact')" style="display: none;">
 
+            <div class="form-group">
+              <label><i class="fas fa-user"></i> Name *</label>
+              <input type="text" placeholder="Your name" required>
+            </div>
+
+            <div class="form-group">
+              <label><i class="fas fa-phone"></i> Phone *</label>
+              <input type="tel" placeholder="+91 XXXXX XXXXX" required>
+            </div>
+
+            <div class="form-group">
+              <label><i class="fas fa-envelope"></i> Email *</label>
+              <input type="email" placeholder="your@email.com" required>
+            </div>
+
+            <div class="form-group">
+              <label><i class="fas fa-tag"></i> Subject *</label>
+              <input type="text" placeholder="Subject" required>
+            </div>
+
+            <div class="form-group">
+              <label><i class="fas fa-comment"></i> Message *</label>
+              <textarea placeholder="Your message..." rows="4" required></textarea>
+            </div>
+
+            <button type="submit" class="btn-book-submit">
+              <i class="fas fa-paper-plane"></i> Send Query
+            </button>
+
+          </form>
+
+        <form class="booking-form" id="loginForm" onsubmit="submitBooking(event,'login')" style="display: none;">
+
+  <div class="form-group">
+    <label><i class="fas fa-envelope"></i> Email *</label>
+    <input type="email" placeholder="Enter your email" required>
+  </div>
+
+  <div class="form-group">
+    <label><i class="fas fa-lock"></i> Password *</label>
+    <input type="password" placeholder="Enter your password" required>
+  </div>
+
+  <button type="submit" class="btn-book-submit">
+    <i class="fas fa-sign-in-alt"></i> Login
+  </button>
+
+</form> 
         <!-- Booking Info Panel -->
         <div class="booking-info">
           <div class="bi-card glass-card">
@@ -2003,6 +2052,7 @@
   </div>
 
   <script src="script.js"></script>
-</body>
 
+
+</body>
 </html>
